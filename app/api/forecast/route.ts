@@ -14,24 +14,34 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const response = await fetch(
+    const fetchResponse = await fetch(
       `https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${API_KEY}&units=metric&cnt=24`
     );
     
-    if (!response.ok) {
+    if (!fetchResponse.ok) {
       throw new Error('City not found');
     }
     
-    const data = await response.json();
+    const data = await fetchResponse.json();
+    
+    // Get timezone offset from city data
+    const timezoneOffset = data.city.timezone || 0;
     
     // Group forecast by date and get daily data
-    const dailyForecast = processForecastData(data.list);
+    const dailyForecast = processForecastData(data.list, timezoneOffset);
     
-    return NextResponse.json({
+    const forecastData = {
       city: data.city.name,
       country: data.city.country,
       forecast: dailyForecast.slice(0, 3) // Get next 3 days
-    });
+    };
+    
+    const response = NextResponse.json(forecastData);
+    
+    // Add cache control headers
+    response.headers.set('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=1200');
+    
+    return response;
   } catch (error) {
     return NextResponse.json(
       { error: 'Failed to fetch forecast data' },
@@ -40,12 +50,13 @@ export async function GET(request: NextRequest) {
   }
 }
 
-function processForecastData(forecastList: any[]) {
+function processForecastData(forecastList: any[], timezoneOffset: number = 0) {
   const dailyData: { [key: string]: any } = {};
   
   forecastList.forEach((item) => {
-    const date = new Date(item.dt * 1000);
-    const dateKey = date.toDateString();
+    // Use timezone-aware date
+    const date = new Date((item.dt + timezoneOffset) * 1000);
+    const dateKey = date.toISOString().split('T')[0]; // Use ISO date format for consistency
     
     if (!dailyData[dateKey]) {
       dailyData[dateKey] = {
@@ -65,14 +76,23 @@ function processForecastData(forecastList: any[]) {
     const temps = day.temps;
     const mostCommonCondition = getMostCommon(day.conditions);
     const mostCommonIcon = getMostCommon(day.icons);
+    const dayDate = new Date(day.date + 'T12:00:00Z'); // Use noon UTC to avoid timezone issues
     
     return {
-      date: day.date,
+      date: dayDate.toLocaleDateString('en-US', { 
+        weekday: 'short', 
+        month: 'short', 
+        day: 'numeric',
+        timeZone: 'UTC'
+      }),
       high: Math.round(Math.max(...temps)),
       low: Math.round(Math.min(...temps)),
       condition: mostCommonCondition,
       icon: getLocalIcon(mostCommonIcon, mostCommonCondition),
-      dayName: new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' })
+      dayName: dayDate.toLocaleDateString('en-US', { 
+        weekday: 'short',
+        timeZone: 'UTC'
+      })
     };
   });
 }

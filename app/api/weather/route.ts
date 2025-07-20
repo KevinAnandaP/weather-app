@@ -14,15 +14,19 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const response = await fetch(
+    const fetchResponse = await fetch(
       `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${API_KEY}&units=metric`
     );
     
-    if (!response.ok) {
+    if (!fetchResponse.ok) {
       throw new Error('City not found');
     }
     
-    const data = await response.json();
+    const data = await fetchResponse.json();
+    
+    // Get timezone offset for the city
+    const timezoneOffset = data.timezone; // seconds from UTC
+    const cityTime = new Date((Date.now() / 1000 + timezoneOffset) * 1000);
     
     const weatherData = {
       city: data.name,
@@ -33,15 +37,17 @@ export async function GET(request: NextRequest) {
       description: data.weather[0].description,
       icon: getLocalIcon(data.weather[0].icon, data.weather[0].main),
       condition: data.weather[0].main,
-      sunrise: new Date(data.sys.sunrise * 1000).toLocaleTimeString('en-US', {
+      sunrise: new Date((data.sys.sunrise + timezoneOffset) * 1000).toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
-        hour12: false
+        hour12: false,
+        timeZone: 'UTC'
       }),
-      sunset: new Date(data.sys.sunset * 1000).toLocaleTimeString('en-US', {
+      sunset: new Date((data.sys.sunset + timezoneOffset) * 1000).toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
-        hour12: false
+        hour12: false,
+        timeZone: 'UTC'
       }),
       humidity: data.main.humidity,
       windSpeed: data.wind.speed,
@@ -49,7 +55,12 @@ export async function GET(request: NextRequest) {
       feelsLike: Math.round(data.main.feels_like),
     };
     
-    return NextResponse.json(weatherData);
+    const response = NextResponse.json(weatherData);
+    
+    // Add cache control headers
+    response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+    
+    return response;
   } catch (error) {
     return NextResponse.json(
       { error: 'Failed to fetch weather data' },
