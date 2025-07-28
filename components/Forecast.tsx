@@ -28,9 +28,6 @@ export default function Forecast({ forecast }: ForecastProps) {
                 />
               </div>
               <div>
-                <div className="font-medium text-white">
-                  {getDayName(day.date)}
-                </div>
                 <div className="text-sm text-white/60 capitalize">
                   {day.condition}
                 </div>
@@ -50,9 +47,6 @@ export default function Forecast({ forecast }: ForecastProps) {
       <div className="hidden lg:grid lg:grid-cols-3 lg:gap-6">
         {forecast.map((day, index) => (
           <div key={index} className="glass-strong rounded-2xl p-6 text-center weather-card">
-            <div className="text-lg font-semibold text-white mb-2">
-              {getDayName(day.date)}
-            </div>
             <div className="relative w-16 h-16 mx-auto mb-4">
               <Image
                 src={day.icon}

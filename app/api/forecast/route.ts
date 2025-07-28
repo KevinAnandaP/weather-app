@@ -76,23 +76,12 @@ function processForecastData(forecastList: any[], timezoneOffset: number = 0) {
     const temps = day.temps;
     const mostCommonCondition = getMostCommon(day.conditions);
     const mostCommonIcon = getMostCommon(day.icons);
-    const dayDate = new Date(day.date + 'T12:00:00Z'); // Use noon UTC to avoid timezone issues
-    
+
     return {
-      date: dayDate.toLocaleDateString('en-US', { 
-        weekday: 'short', 
-        month: 'short', 
-        day: 'numeric',
-        timeZone: 'UTC'
-      }),
       high: Math.round(Math.max(...temps)),
       low: Math.round(Math.min(...temps)),
       condition: mostCommonCondition,
       icon: getLocalIcon(mostCommonIcon, mostCommonCondition),
-      dayName: dayDate.toLocaleDateString('en-US', { 
-        weekday: 'short',
-        timeZone: 'UTC'
-      })
     };
   });
 }
